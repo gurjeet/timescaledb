@@ -73,10 +73,6 @@ BEGIN
        ON sql_drop
        EXECUTE PROCEDURE _timescaledb_internal.ddl_process_drop_trigger();
 
-    CREATE EVENT TRIGGER ddl_alter_table ON ddl_command_end
-       WHEN tag IN ('alter table')
-       EXECUTE PROCEDURE _timescaledb_internal.ddl_process_alter_table();
-
     CREATE EVENT TRIGGER ddl_check_drop_command
        ON sql_drop
        EXECUTE PROCEDURE _timescaledb_internal.ddl_process_drop_table();
@@ -87,7 +83,6 @@ BEGIN
         ALTER EXTENSION timescaledb ADD EVENT TRIGGER ddl_drop_index;
         ALTER EXTENSION timescaledb ADD EVENT TRIGGER ddl_create_trigger;
         ALTER EXTENSION timescaledb ADD EVENT TRIGGER ddl_drop_trigger;
-        ALTER EXTENSION timescaledb ADD EVENT TRIGGER ddl_alter_table;
         ALTER EXTENSION timescaledb ADD EVENT TRIGGER ddl_check_drop_command;
     END IF;
 

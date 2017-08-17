@@ -89,7 +89,7 @@ BEGIN
 END
 $BODY$;
 
-CREATE OR REPLACE FUNCTION _timescaledb_internal.add_constraint(
+CREATE OR REPLACE FUNCTION _timescaledb_internal.add_constraint_by_name(
     hypertable_id INTEGER,
     constraint_name name
 )

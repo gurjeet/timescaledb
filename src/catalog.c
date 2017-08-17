@@ -59,6 +59,28 @@ const static TableIndexDef catalog_table_index_definitions[_MAX_CATALOG_TABLES] 
 	}
 };
 
+typedef struct InternalFunctionDef
+{
+	char *      name;
+	size_t		args;
+} InternalFunctionDef;
+
+const static InternalFunctionDef internal_function_definitions[_MAX_INTERNAL_FUNCTIONS] = {
+	[DDL_CHANGE_OWNER] = {
+		.name = "ddl_change_owner",
+		.args = 2,
+	},
+	[DDL_ADD_CONSTRAINT] = {
+		.name = "add_constraint_by_name",
+		.args = 2,
+	},
+	[DDL_DROP_CONSTRAINT] = {
+		.name = "drop_constraint",
+		.args = 2,
+	}
+
+};
+
 /* Names for proxy tables used for cache invalidation. Must match names in
  * sql/cache.sql */
 static const char *cache_proxy_table_names[_MAX_CACHE_TYPES] = {
@@ -136,6 +158,21 @@ catalog_get(void)
 		catalog.caches[i].inval_proxy_id = get_relname_relid(cache_proxy_table_names[i],
 													catalog.cache_schema_id);
 
+	catalog.internal_schema_id = get_namespace_oid(INTERNAL_SCHEMA_NAME, false);
+	for (i = 0; i < _MAX_INTERNAL_FUNCTIONS; i++)
+	{
+		InternalFunctionDef def = internal_function_definitions[i];
+		FuncCandidateList funclist =
+		FuncnameGetCandidates(list_make2(makeString(INTERNAL_SCHEMA_NAME),makeString(def.name)),
+							  def.args, NULL, false, false, false);
+
+		if (funclist == NULL || funclist->next)
+			elog(ERROR, "Oid lookup failed for the function %s with %lu args", def.name, def.args);
+
+		catalog.functions[i].function_id = funclist->oid; 
+	}
+
+
 	return &catalog;
 }
 
@@ -155,6 +192,12 @@ Oid
 catalog_get_cache_proxy_id(Catalog *catalog, CacheType type)
 {
 	return catalog->caches[type].inval_proxy_id;
+}
+
+Oid
+catalog_get_internal_function_id(Catalog *catalog, InternalFunctions func)
+{
+	return catalog->functions[func].function_id;
 }
 
 Oid
