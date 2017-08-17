@@ -244,7 +244,7 @@ CREATE TABLE hyper_ex (
     ) WHERE (not canceled)
 );
 
-SELECT * FROM create_hypertable('hyper_ex', 'time');
+SELECT * FROM create_hypertable('hyper_ex', 'time', chunk_time_interval=>_timescaledb_internal.interval_to_usec('1 month'));
 
 INSERT INTO hyper_ex(time, device_id,sensor_1) VALUES
 (1257987700000000000, 'dev2', 11);
@@ -295,5 +295,5 @@ CREATE TABLE hyper_ex_invalid (
 );
 
 \set ON_ERROR_STOP 0
-SELECT * FROM create_hypertable('hyper_ex_invalid', 'time');
+SELECT * FROM create_hypertable('hyper_ex_invalid', 'time', chunk_time_interval=>_timescaledb_internal.interval_to_usec('1 month'));
 \set ON_ERROR_STOP 1
