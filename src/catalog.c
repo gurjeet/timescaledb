@@ -3,6 +3,7 @@
 #include <utils/lsyscache.h>
 #include <miscadmin.h>
 #include <commands/dbcommands.h>
+#include <access/xact.h>
 
 #include "catalog.h"
 #include "extension.h"
@@ -87,7 +88,7 @@ catalog_get(void)
 	if (MyDatabaseId == catalog.database_id)
 		return &catalog;
 
-	if (!extension_is_loaded())
+	if (!extension_is_loaded() || !IsTransactionState())
 		return &catalog;
 
 	memset(&catalog, 0, sizeof(Catalog));
