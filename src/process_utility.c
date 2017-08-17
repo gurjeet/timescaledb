@@ -316,7 +316,7 @@ process_altertable_change_owner(Cache *hcache, AlterTableCmd *cmd, Oid relid)
 {
 	Hypertable *ht;
 	RoleSpec   *role;
-	
+
 	ht = hypertable_cache_get_entry(hcache, relid);
 	if (NULL == ht)
 		return;
@@ -324,38 +324,46 @@ process_altertable_change_owner(Cache *hcache, AlterTableCmd *cmd, Oid relid)
 	Assert(IsA(cmd->newowner, RoleSpec));
 	role = (RoleSpec *) cmd->newowner;
 	OidFunctionCall2(catalog_get_internal_function_id(catalog_get(), DDL_CHANGE_OWNER),
-					 ObjectIdGetDatum(relid), CStringGetDatum(role->rolename));
+				   ObjectIdGetDatum(relid), CStringGetDatum(role->rolename));
 }
 
 static void
-process_altertable_add_constraint(Cache *hcache, AlterTableCmd *cmd, Oid relid){
+process_altertable_add_constraint(Cache *hcache, AlterTableCmd *cmd, Oid relid)
+{
 	Hypertable *ht;
-	char *constraint_name = NULL;
+	char	   *constraint_name = NULL;
 
 	ht = hypertable_cache_get_entry(hcache, relid);
 	if (NULL == ht)
 		return;
-	
-	if (cmd->name != NULL) 
+
+	if (cmd->name != NULL)
 	{
 		constraint_name = cmd->name;
 	}
-	else {
+	else
+	{
 		if (cmd->subtype == AT_AddIndex)
 		{
-			Node *def = cmd->def;
-			if (IsA(def, IndexStmt)) {
-				IndexStmt *stmt = (IndexStmt *) def;
+			Node	   *def = cmd->def;
+
+			if (IsA(def, IndexStmt))
+			{
+				IndexStmt  *stmt = (IndexStmt *) def;
+
 				Assert(stmt->isconstraint);
 				constraint_name = stmt->idxname;
 			}
 		}
 		if (cmd->subtype == AT_AddConstraint
-			|| cmd->subtype == AT_AddConstraintRecurse) 
+			|| cmd->subtype == AT_AddConstraintRecurse)
 		{
-			Node *def = cmd->def;
-			if (IsA(def, Constraint)) {
+			Node	   *def = cmd->def;
+
+			if (IsA(def, Constraint))
+			{
 				Constraint *stmt = (Constraint *) def;
+
 				constraint_name = stmt->conname;
 			}
 
@@ -364,27 +372,28 @@ process_altertable_add_constraint(Cache *hcache, AlterTableCmd *cmd, Oid relid){
 
 	Assert(constraint_name != NULL);
 	OidFunctionCall2(catalog_get_internal_function_id(catalog_get(), DDL_ADD_CONSTRAINT),
-					 Int32GetDatum(ht->fd.id), CStringGetDatum(constraint_name));
+				 Int32GetDatum(ht->fd.id), CStringGetDatum(constraint_name));
 }
 
 
 static void
-process_altertable_drop_constraint(Cache *hcache, AlterTableCmd *cmd, Oid relid){
+process_altertable_drop_constraint(Cache *hcache, AlterTableCmd *cmd, Oid relid)
+{
 	Hypertable *ht;
-	char *constraint_name = NULL;
+	char	   *constraint_name = NULL;
 
 	ht = hypertable_cache_get_entry(hcache, relid);
 	if (NULL == ht)
 		return;
-	
-	if (cmd->name != NULL) 
+
+	if (cmd->name != NULL)
 	{
 		constraint_name = cmd->name;
 	}
 
 	Assert(constraint_name != NULL);
 	OidFunctionCall2(catalog_get_internal_function_id(catalog_get(), DDL_DROP_CONSTRAINT),
-					 Int32GetDatum(ht->fd.id), CStringGetDatum(constraint_name));
+				 Int32GetDatum(ht->fd.id), CStringGetDatum(constraint_name));
 }
 
 
@@ -411,7 +420,11 @@ process_altertable(Node *parsetree)
 				process_altertable_change_owner(hcache, cmd, relid);
 				break;
 			case AT_AddIndex:
-				/* AddConstraint sometimes transformed to AddIndex if Index is involved. different path than CREATE INDEX. */
+
+				/*
+				 * AddConstraint sometimes transformed to AddIndex if Index is
+				 * involved. different path than CREATE INDEX.
+				 */
 			case AT_AddConstraint:
 			case AT_AddConstraintRecurse:
 				process_altertable_add_constraint(hcache, cmd, relid);

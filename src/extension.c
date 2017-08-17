@@ -183,7 +183,11 @@ extension_is_loaded(void)
 	if (creating_extension && OidIsValid(get_extension_oid(EXTENSION_NAME, true)) && get_extension_oid(EXTENSION_NAME, true) == CurrentExtensionObject)
 	{
 		/* turn off extension during upgrade scripts */
-		/* This is necessary so that, for example, the catalog does not go looking for things that aren't yet there. */
+
+		/*
+		 * This is necessary so that, for example, the catalog does not go
+		 * looking for things that aren't yet there.
+		 */
 		return false;
 	}
 

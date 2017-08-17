@@ -28,7 +28,8 @@ enum CatalogTable
 	_MAX_CATALOG_TABLES,
 };
 
-typedef enum InternalFunctions {
+typedef enum InternalFunctions
+{
 	DDL_CHANGE_OWNER = 0,
 	DDL_ADD_CONSTRAINT,
 	DDL_DROP_CONSTRAINT,
@@ -265,7 +266,7 @@ enum Anum_chunk_constraint
 {
 	Anum_chunk_constraint_chunk_id = 1,
 	Anum_chunk_constraint_dimension_slice_id,
-    Anum_chunk_constraint_constraint_name,
+	Anum_chunk_constraint_constraint_name,
 	Anum_chunk_constraint_hypertable_constraint_name,
 	_Anum_chunk_constraint_max,
 };
@@ -331,10 +332,10 @@ typedef struct Catalog
 	{
 		Oid			inval_proxy_id;
 	}			caches[_MAX_CACHE_TYPES];
-	Oid 		internal_schema_id;
-	struct 
+	Oid			internal_schema_id;
+	struct
 	{
-		Oid        function_id;
+		Oid			function_id;
 	}			functions[_MAX_INTERNAL_FUNCTIONS];
 } Catalog;
 
@@ -345,7 +346,7 @@ void		catalog_reset(void);
 Oid			catalog_get_cache_proxy_id(Catalog *catalog, CacheType type);
 Oid			catalog_get_cache_proxy_id_by_name(Catalog *catalog, const char *relname);
 
-Oid 		catalog_get_internal_function_id(Catalog *catalog, InternalFunctions func);
+Oid			catalog_get_internal_function_id(Catalog *catalog, InternalFunctions func);
 
 const char *catalog_get_cache_proxy_name(CacheType type);
 

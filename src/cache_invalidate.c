@@ -81,13 +81,16 @@ invalidate_relcache_trigger(PG_FUNCTION_ARGS)
 
 	/* arg 0 = name of the proxy table */
 	proxy_oid = catalog_get_cache_proxy_id_by_name(catalog, trigdata->tg_trigger->tgargs[0]);
-	if(proxy_oid != 0)
+	if (proxy_oid != 0)
 	{
 		CacheInvalidateRelcacheByRelid(proxy_oid);
 	}
 	else
 	{
-		/* This can happen during  upgrade scripts when the catalog is unavailable */
+		/*
+		 * This can happen during  upgrade scripts when the catalog is
+		 * unavailable
+		 */
 		CacheInvalidateRelcacheByRelid(get_relname_relid(trigdata->tg_trigger->tgargs[0], get_namespace_oid(CACHE_SCHEMA_NAME, false)));
 	}
 

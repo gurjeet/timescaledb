@@ -61,7 +61,7 @@ const static TableIndexDef catalog_table_index_definitions[_MAX_CATALOG_TABLES] 
 
 typedef struct InternalFunctionDef
 {
-	char *      name;
+	char	   *name;
 	size_t		args;
 } InternalFunctionDef;
 
@@ -163,13 +163,13 @@ catalog_get(void)
 	{
 		InternalFunctionDef def = internal_function_definitions[i];
 		FuncCandidateList funclist =
-		FuncnameGetCandidates(list_make2(makeString(INTERNAL_SCHEMA_NAME),makeString(def.name)),
+		FuncnameGetCandidates(list_make2(makeString(INTERNAL_SCHEMA_NAME), makeString(def.name)),
 							  def.args, NULL, false, false, false);
 
 		if (funclist == NULL || funclist->next)
 			elog(ERROR, "Oid lookup failed for the function %s with %lu args", def.name, def.args);
 
-		catalog.functions[i].function_id = funclist->oid; 
+		catalog.functions[i].function_id = funclist->oid;
 	}
 
 
