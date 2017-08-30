@@ -77,6 +77,10 @@ const static InternalFunctionDef internal_function_definitions[_MAX_INTERNAL_FUN
 	[DDL_DROP_CONSTRAINT] = {
 		.name = "drop_constraint",
 		.args = 2,
+	},
+	[DDL_DROP_HYPERTABLE] = {
+		.name = "drop_hypertable",
+		.args = 1
 	}
 
 };
@@ -195,7 +199,7 @@ catalog_get_cache_proxy_id(Catalog *catalog, CacheType type)
 }
 
 Oid
-catalog_get_internal_function_id(Catalog *catalog, InternalFunctions func)
+catalog_get_internal_function_id(Catalog *catalog, InternalFunction func)
 {
 	return catalog->functions[func].function_id;
 }

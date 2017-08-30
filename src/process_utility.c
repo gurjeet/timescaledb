@@ -4,6 +4,7 @@
 #include <catalog/namespace.h>
 #include <catalog/pg_inherits_fn.h>
 #include <catalog/index.h>
+#include <catalog/objectaddress.h>
 #include <commands/copy.h>
 #include <commands/vacuum.h>
 #include <commands/defrem.h>
@@ -268,6 +269,46 @@ reindex_chunk(Oid chunk_relid, void *arg)
 	}
 }
 
+static bool
+process_drop(Node *parsetree)
+{
+	DropStmt *stmt = (DropStmt *) parsetree;
+	ListCell   *cell1;
+	Cache	   *hcache = NULL;
+	bool handled = false;
+
+	if(stmt->removeType != OBJECT_TABLE)
+	{
+		return false;
+	}
+	
+	hcache = hypertable_cache_pin();
+
+	foreach(cell1, stmt->objects)
+	{
+		List	   *object = lfirst(cell1);
+		Oid			relid = RangeVarGetRelid(makeRangeVarFromNameList(object), NoLock, true);
+		if (OidIsValid(relid)){
+			Hypertable *ht;
+
+			ht = hypertable_cache_get_entry(hcache, relid);
+			if (NULL != ht)
+			{
+				if (list_length(stmt->objects) != 1)
+				{
+					elog(ERROR, "Cannot drop a hypertable along with other objects");
+				}
+				OidFunctionCall1(catalog_get_internal_function_id(catalog_get(), DDL_DROP_HYPERTABLE),
+				   Int32GetDatum(ht->fd.id));
+				handled = true;
+			}
+		}
+	}
+
+	cache_release(hcache);
+	return handled;
+}
+
 /*
  * Reindex a hypertable and all its chunks. Currently works only for REINDEX
  * TABLE.
@@ -310,16 +351,10 @@ process_reindex(Node *parsetree)
 	return false;
 }
 
-
 static void
-process_altertable_change_owner(Cache *hcache, AlterTableCmd *cmd, Oid relid)
+process_altertable_change_owner(Hypertable *ht, AlterTableCmd *cmd, Oid relid)
 {
-	Hypertable *ht;
 	RoleSpec   *role;
-
-	ht = hypertable_cache_get_entry(hcache, relid);
-	if (NULL == ht)
-		return;
 
 	Assert(IsA(cmd->newowner, RoleSpec));
 	role = (RoleSpec *) cmd->newowner;
@@ -328,48 +363,8 @@ process_altertable_change_owner(Cache *hcache, AlterTableCmd *cmd, Oid relid)
 }
 
 static void
-process_altertable_add_constraint(Cache *hcache, AlterTableCmd *cmd, Oid relid)
+process_altertable_add_constraint(Hypertable *ht, const char* constraint_name)
 {
-	Hypertable *ht;
-	char	   *constraint_name = NULL;
-
-	ht = hypertable_cache_get_entry(hcache, relid);
-	if (NULL == ht)
-		return;
-
-	if (cmd->name != NULL)
-	{
-		constraint_name = cmd->name;
-	}
-	else
-	{
-		if (cmd->subtype == AT_AddIndex)
-		{
-			Node	   *def = cmd->def;
-
-			if (IsA(def, IndexStmt))
-			{
-				IndexStmt  *stmt = (IndexStmt *) def;
-
-				Assert(stmt->isconstraint);
-				constraint_name = stmt->idxname;
-			}
-		}
-		if (cmd->subtype == AT_AddConstraint
-			|| cmd->subtype == AT_AddConstraintRecurse)
-		{
-			Node	   *def = cmd->def;
-
-			if (IsA(def, Constraint))
-			{
-				Constraint *stmt = (Constraint *) def;
-
-				constraint_name = stmt->conname;
-			}
-
-		}
-	}
-
 	Assert(constraint_name != NULL);
 	OidFunctionCall2(catalog_get_internal_function_id(catalog_get(), DDL_ADD_CONSTRAINT),
 				 Int32GetDatum(ht->fd.id), CStringGetDatum(constraint_name));
@@ -377,20 +372,11 @@ process_altertable_add_constraint(Cache *hcache, AlterTableCmd *cmd, Oid relid)
 
 
 static void
-process_altertable_drop_constraint(Cache *hcache, AlterTableCmd *cmd, Oid relid)
+process_altertable_drop_constraint(Hypertable *ht, AlterTableCmd *cmd, Oid relid)
 {
-	Hypertable *ht;
 	char	   *constraint_name = NULL;
 
-	ht = hypertable_cache_get_entry(hcache, relid);
-	if (NULL == ht)
-		return;
-
-	if (cmd->name != NULL)
-	{
-		constraint_name = cmd->name;
-	}
-
+	constraint_name = cmd->name;
 	Assert(constraint_name != NULL);
 	OidFunctionCall2(catalog_get_internal_function_id(catalog_get(), DDL_DROP_CONSTRAINT),
 				 Int32GetDatum(ht->fd.id), CStringGetDatum(constraint_name));
@@ -404,11 +390,19 @@ process_altertable(Node *parsetree)
 	Oid			relid = AlterTableLookupRelation(stmt, NoLock);
 	Cache	   *hcache = NULL;
 	ListCell   *lc;
+	Hypertable *ht;
 
 	if (!OidIsValid(relid))
 		return;
 
 	hcache = hypertable_cache_pin();
+
+	ht = hypertable_cache_get_entry(hcache, relid);
+	if (NULL == ht)
+	{
+		cache_release(hcache);
+		return;
+	}
 
 	foreach(lc, stmt->cmds)
 	{
@@ -417,21 +411,33 @@ process_altertable(Node *parsetree)
 		switch (cmd->subtype)
 		{
 			case AT_ChangeOwner:
-				process_altertable_change_owner(hcache, cmd, relid);
+				process_altertable_change_owner(ht, cmd, relid);
 				break;
 			case AT_AddIndex:
+				{
+					Assert(IsA(cmd->def, IndexStmt));
+					IndexStmt  *stmt = (IndexStmt *) cmd->def;
 
+					Assert(stmt->isconstraint);
+					process_altertable_add_constraint(ht, stmt->idxname);
+				}
 				/*
 				 * AddConstraint sometimes transformed to AddIndex if Index is
 				 * involved. different path than CREATE INDEX.
 				 */
 			case AT_AddConstraint:
 			case AT_AddConstraintRecurse:
-				process_altertable_add_constraint(hcache, cmd, relid);
+				{
+					Assert(IsA(cmd->def, Constraint));
+					Constraint *stmt = (Constraint *) cmd->def;
+
+					process_altertable_add_constraint(ht, stmt->conname);
+				}
+
 				break;
 			case AT_DropConstraint:
 			case AT_DropConstraintRecurse:
-				process_altertable_drop_constraint(hcache, cmd, relid);
+				process_altertable_drop_constraint(ht, cmd, relid);
 				break;
 			default:
 				break;
@@ -472,6 +478,10 @@ timescaledb_ProcessUtility(Node *parsetree,
 			break;
 		case T_RenameStmt:
 			process_rename(parsetree);
+			break;
+		case T_DropStmt:
+			/* drop associated metadata/chunks but also continue on to drop the main table */
+			process_drop(parsetree);
 			break;
 		case T_CopyStmt:
 			if (process_copy(parsetree, query_string, completion_tag))

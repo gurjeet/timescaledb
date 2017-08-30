@@ -28,13 +28,14 @@ enum CatalogTable
 	_MAX_CATALOG_TABLES,
 };
 
-typedef enum InternalFunctions
+typedef enum InternalFunction
 {
 	DDL_CHANGE_OWNER = 0,
 	DDL_ADD_CONSTRAINT,
 	DDL_DROP_CONSTRAINT,
+	DDL_DROP_HYPERTABLE,
 	_MAX_INTERNAL_FUNCTIONS,
-} InternalFunctions;
+} InternalFunction;
 
 #define CATALOG_SCHEMA_NAME "_timescaledb_catalog"
 #define CACHE_SCHEMA_NAME "_timescaledb_cache"
@@ -346,7 +347,7 @@ void		catalog_reset(void);
 Oid			catalog_get_cache_proxy_id(Catalog *catalog, CacheType type);
 Oid			catalog_get_cache_proxy_id_by_name(Catalog *catalog, const char *relname);
 
-Oid			catalog_get_internal_function_id(Catalog *catalog, InternalFunctions func);
+Oid			catalog_get_internal_function_id(Catalog *catalog, InternalFunction func);
 
 const char *catalog_get_cache_proxy_name(CacheType type);
 
